@@ -3,6 +3,8 @@
     "axios": "^1.6.0",
     "cheerio": "^1.0.0-rc.12",
     "fs": "^0.0.1-security",
+    "node-cron": "^3.0.3",
+    "node-schedule": "^2.1.1",
     "puppeteer": "^21.5.0"
   },
   "name": "scrap-one-piece",

@@ -2,10 +2,29 @@ const puppeteer = require('puppeteer');
 const cheerio = require('cheerio');
 const fs = require('fs');
 const axios = require('axios');
+const cron = require('node-cron');
+const schedule = require('node-schedule');
+
+
+let nextScheduledTime;
+// Function to calculate and display the time difference
+function displayTimeDifference() {
+  if (nextScheduledTime) {
+    const currentTime = new Date();
+    const timeDifference = nextScheduledTime - currentTime;
+    const minutesRemaining = Math.floor(timeDifference / (1000 * 60));
+
+    console.log(`Next execution in ${minutesRemaining} minutes at ${nextScheduledTime}`);
+  } else {
+    console.log('Next scheduled time not yet set.');
+  }
+}
+
+
 
 const url = 'https://onepiecescan.fr/';
 
-(async () => {
+async function executeScript() {
   const browser = await puppeteer.launch();
   const page = await browser.newPage();
   await page.goto(url);
@@ -14,59 +33,39 @@ const url = 'https://onepiecescan.fr/';
   const $ = cheerio.load(content);
   console.log('Page title:', $('title').text());
 
-//const latestChapterLink = $('div.liste-chapitres a li a').attr('href'); // Update the selector here
-
-// const latestChaptersList = [];
-//   $('div.elementor-element-54c010d').each((index, element) => {
-//     const chapterLink = $(element).find('div > div > div > ul > li > ul > li > a').attr('href');
-//     const chapterTitle = $(element).find('div > div > div > ul > li > ul > li > a')
-//     console.log('chapterTitle: ', chapterTitle);
-//     latestChaptersList.push({ title: chapterTitle, link: chapterLink });
-//     // latestChaptersList.push($(element).text());
-//   });
-
-const latestChapter = {
+  const latestChapter = {
     title: '',
     link: ''
-}
+  }
 
-const a = $('li#ceo_latest_comics_widget-2 li').first();
-// console.log(a.children()[0])
+  const a = $('li#ceo_latest_comics_widget-2 li').first();
 
-latestChapter.title = a.children()[0].children[0].data;
-latestChapter.link = a.children()[0].attribs.href;
+  latestChapter.title = a.children()[0].children[0].data;
+  latestChapter.link = a.children()[0].attribs.href;
 
-console.log('latestChapter: ', latestChapter)
+  console.log('latestChapter: ', latestChapter)
 
-
-  // Download images
   console.log('Downloading images...')
   const chapterPage = await browser.newPage();
   await chapterPage.goto(latestChapter.link);
   const chapterContent = await chapterPage.content();
   const $$ = cheerio.load(chapterContent);
-  const imageLinks = [] ;
+  const imageLinks = [];
 
   const b = $$("div.elementor-element-f766019 img");
   b.each((index, element) => {
-    // imageLink = element.attribs.src;
     imageLinks.push(element.attribs.src);
   });
-  
+
   console.log('imageLink: ', imageLinks)
 
-
-  // Create a directory for images
   console.log('Creating directory for images...')
   const dir = './one_piece_images';
-    if (!fs.existsSync(dir)) {
-        fs.mkdirSync(dir);
-    }
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir);
+  }
 
-   
-
-  // Download and save images
-console.log('Saving images...')
+  console.log('Saving images...')
   imageLinks.forEach(async (imageLink, index) => {
     const image = await axios.get(imageLink, {
       responseType: 'arraybuffer',
@@ -79,4 +78,41 @@ console.log('Saving images...')
   });
 
   await browser.close();
-})();
+}
+
+//lancer la première fois
+// executeScript();
+displayTimeDifference();
+
+// Schedule the script to run every 5 minutes
+const job = schedule.scheduleJob('*/5 * * * *', () => {
+  console.log('Running script...');
+  executeScript().then(() => {
+    // Display the time difference after each execution
+    displayTimeDifference();
+  }).catch(err => console.error(err));
+});
+
+// // Schedule the script to run every Monday at 8:30 AM
+// const job = schedule.scheduleJob('*30 8 * * 1', () => {
+//   console.log('Running script...');
+//   executeScript().then(() => {
+//     // Display the time difference after each execution
+//     displayTimeDifference();
+//   }).catch(err => console.error(err));
+// });
+
+// Capture the next scheduled time when the job is scheduled
+job.on('scheduled', fireDate => {
+  nextScheduledTime = fireDate;
+  displayTimeDifference();
+});
+
+
+// 30: Run at the 30th minute of the hour.
+// 8: Run at the 8th hour (8:00 AM).
+// *: Any day of the month.
+// *: Any month.
+// 1: Only on Monday (Sunday is 0)
+
+
