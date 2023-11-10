@@ -58,11 +58,24 @@ async function executeScript() {
   });
 
   console.log('imageLink: ', imageLinks)
+  // Extract the final number using a regular expression
+  const match = latestChapter.link.match(/(\d+)\/$/);
 
-  console.log('Creating directory for images...')
-  const dir = './one_piece_images';
-  if (!fs.existsSync(dir)) {
-    fs.mkdirSync(dir);
+  // Check if there is a match and extract the final number
+  const finalNumber = match ? match[1] : null;
+
+  const dir = `./one_piece_images/${finalNumber}`;
+  if (finalNumber) {
+  
+    console.log('Creating directory for images...')
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+      console.log(`Directory ${dir} created.`);
+    } else {
+      console.log(`Directory ${dir} already exists.`);
+    }
+  } else {
+    console.log('Unable to extract the final number from the link.');
   }
 
   console.log('Saving images...')
@@ -85,7 +98,7 @@ async function executeScript() {
 displayTimeDifference();
 
 // Schedule the script to run every 5 minutes
-const job = schedule.scheduleJob('*/5 * * * *', () => {
+const job = schedule.scheduleJob('*/2 * * * *', () => {
   console.log('Running script...');
   executeScript().then(() => {
     // Display the time difference after each execution
